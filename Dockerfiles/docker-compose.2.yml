@@ -1,0 +1,28 @@
+name: Replica2
+services:
+
+  app2:
+    build:
+      context: ../
+      dockerfile: ./Dockerfiles/wrapperdockerfile
+    container_name: Replica2
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URI: bolt://neo4j2:7687
+      NEO4J_USER: "pandey"
+      NEO4J_PASSWORD: "verysecretpassword"
+      USER: pandey
+      DATABASE: NEO4J
+      LOG_LEVEL: info
+      LEADER_URI: "http://Replica1:3000"
+      MY_URI: "http://Replica2:3000"
+    cap_add:
+       - NET_ADMIN
+    networks:
+      - Replica_net_2
+      - Shared_net
+networks:
+  Replica_net_2:
+  Shared_net:
+    external: true
