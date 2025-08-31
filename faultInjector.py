@@ -11,7 +11,7 @@ COMPOSE_DIR = "./replicas"
 SHARED_NET = "Shared_net"
 
 # Fault timing
-FAULT_DURATION = 15
+FAULT_DURATION = 5
 COOLDOWN = 30
 
 def run(cmd):
@@ -46,31 +46,24 @@ def main():
             time.sleep(10)
             continue
 
-        # Pick two distinct containers
-        src, dst = random.sample(containers, 2)
-        dst_ip = get_ip(dst, SHARED_NET)
-        if not dst_ip:
-            print(f"⚠️ Could not get IP for {dst} in network {SHARED_NET}")
-            time.sleep(10)
-            continue
+        # Pick a replica to disconnect. It could be the leader too. 
+        replica = random.choice(containers)
 
         # Pick a random fault
         action = random.choice(["partition"])
 
         if action == "partition":
-            print(f"🚫 Partitioning {src} → {dst}")
-            run(["docker", "exec", src, "iptables", "-A", "OUTPUT", "-d", dst_ip, "-j", "DROP"])
-            time.sleep(FAULT_DURATION)
-            print(f"✨ Healing {src} → {dst}")
-            run(["docker", "exec", src, "iptables", "-D", "OUTPUT", "-d", dst_ip, "-j", "DROP"])
+            # Partition replica from shared network
+            print(f"🚫 Disconnecting {replica} from {SHARED_NET}")
+            run(["docker", "network", "disconnect", SHARED_NET, replica])
 
-        elif action == "delay":
-            print(f"🐢 Adding latency on {src}")
-            run(["docker", "exec", src, "tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", "300ms"])
             time.sleep(FAULT_DURATION)
-            print(f"✨ Restoring normal latency on {src}")
-            run(["docker", "exec", src, "tc", "qdisc", "del", "dev", "eth0", "root"])
-            
+
+            # Heal (reconnect to network)
+            print(f"✨ Reconnecting {replica} to {SHARED_NET}")
+            run(["docker", "network", "connect", SHARED_NET, replica])
+
+
         print("⏳ Cooling down...")
         time.sleep(COOLDOWN)
 

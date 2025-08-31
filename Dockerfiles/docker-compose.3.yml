@@ -1,8 +1,8 @@
-name: Replica2
+name: Replica3
 services:
-  memgraph2:
+  memgraph3:
     image: memgraph/memgraph:3.0.0
-    container_name: memgraph2
+    container_name: memgraph3
     command: ["--log-level=INFO"]
     healthcheck:
       test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
@@ -15,49 +15,49 @@ services:
         soft: 40000
         hard: 40000
     ports:
-      - "7688:7687"
+      - "7689:7687"
     networks:
-      - Replica_net_2
+      - Replica_net_3
 
-  lab2:
+  lab3:
     image: memgraph/lab
-    container_name: lab2
+    container_name: lab3
     depends_on:
-      memgraph2:
+      memgraph3:
         condition: service_healthy
     ports:
-      - "7475:3000"
+      - "7476:3000"
     environment:
-      QUICK_CONNECT_MG_HOST: memgraph2
+      QUICK_CONNECT_MG_HOST: memgraph3
       QUICK_CONNECT_MG_PORT: 7687
     networks:
-      - Replica_net_2
+      - Replica_net_3
 
-  app2:
+  app3:
     build:
       context: ../
       dockerfile: ./Dockerfiles/wrapperdockerfile
-    container_name: Replica2
+    container_name: Replica3
     ports:
-      - "3001:3000"
+      - "3002:3000"
     environment:
-      DATABASE_URI: bolt://memgraph2:7687
+      DATABASE_URI: bolt://memgraph3:7687
       NEO4J_USER: "pandey"
       NEO4J_PASSWORD: "verysecretpassword"
       USER: pandey
       DATABASE: MEMGRAPH
       LOG_LEVEL: info
       LEADER_URI: "http://Replica1:3000"
-      MY_URI: "http://Replica2:3000"
+      MY_URI: "http://Replica3:3000"
     depends_on:
-      memgraph2:
+      memgraph3:
         condition: service_healthy
     cap_add:
        - NET_ADMIN
     networks:
-      - Replica_net_2
+      - Replica_net_3
       - Shared_net
 networks:
-  Replica_net_2:
+  Replica_net_3:
   Shared_net:
     external: true

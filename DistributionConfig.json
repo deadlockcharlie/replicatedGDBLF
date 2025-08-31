@@ -4,13 +4,19 @@
   "base_app_port": 3000,
   "dbs" : [
     {
-      "database": "neo4j", 
+      "database": "memgraph", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"
     },
     {
-      "database": "neo4j", 
+      "database": "memgraph", 
+      "password": "verysecretpassword",
+      "user": "pandey",
+      "app_log_level": "info"
+    },
+    {
+      "database": "memgraph", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"

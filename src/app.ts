@@ -22,41 +22,42 @@ import { logger } from "./helpers/logging";
 import { Neo4jDriver } from "./drivers/neo4jDriver";
 import { GremlinDriver } from "./drivers/germlinDriver";
 
-// logger.info(`environment: ${JSON.stringify(process.env)}`);
-// const dbname = process.env.DATABASE;
-// logger.info(`Database specified ${dbname}`);
-// export var driver;
-// switch (dbname) {
-//   case "NEO4J":
-//   case "MEMGRAPH":
-//     driver = new Neo4jDriver();
-//     break;
-//   case "JANUSGRAPH":
-//     driver = new GremlinDriver();
-//     break;
-//   default:
-//     logger.error(
-//       "No database specified in configuration. Cannot initialize driver."
-//     );
-//     process.exit(1);
-//     break;
-// }
+logger.info(`environment: ${JSON.stringify(process.env)}`);
+const dbname = process.env.DATABASE;
+logger.info(`Database specified ${dbname}`);
+export var driver;
+switch (dbname) {
+  case "NEO4J":
+  case "MEMGRAPH":
+    driver = new Neo4jDriver();
+    break;
+  case "JANUSGRAPH":
+    driver = new GremlinDriver();
+    break;
+  default:
+    logger.error(
+      "No database specified in configuration. Cannot initialize driver."
+    );
+    process.exit(1);
+    break;
+}
 
 import { serviceRegistry } from "./helpers/serviceRegistry";
 export var registry = new serviceRegistry();
 
-app.post("/query", async (req, res) => {
+app.post("/write", async (req, res) => {
   logger.info("query route called");
   logger.info(JSON.stringify(req.body));
   logger.info(JSON.stringify(registry.services));
 
-  // driver.runQuery(req.body.query, req.body.params || null);
+  const result = await driver.runQuery(req.body.query, req.body.params || null);
+  logger.info(result);
 
   let futures = [];
 
   registry.services.forEach((uri) => {
     logger.info("Endpoint" + uri);
-    futures.push(axios.post(uri + "/query", req.body));
+    futures.push(axios.post(uri + "/write", req.body));
   });
 
   try {
@@ -71,6 +72,18 @@ app.post("/query", async (req, res) => {
         "An error occurred when forwarding to a follower. Please try again"
       );
   }
+});
+
+
+app.post("/read", async (req, res) => {
+  logger.info("read route called");
+  logger.info(JSON.stringify(req.body));
+  logger.info(JSON.stringify(registry.services));
+
+  const result = await driver.runQuery(req.body.query, req.body.params || null);
+  logger.info(result);
+  res.status(200).json("Done");
+
 });
 
 app.post("/register", async (req, res) => {

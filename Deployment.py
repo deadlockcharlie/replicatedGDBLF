@@ -130,14 +130,6 @@ def generate_compose_file(i, db_conf, config):
     network_name = f"Replica_net_{i+1}"
 
     
-    global BENCHMARK
-    mount=""
-    if BENCHMARK:
-      mount= (f"""
-          volumes:
-            - ../scratch/data:/data
-            - ../scratch/plugins:/plugins"
-      """)
 
 
     if database == "neo4j":
@@ -146,7 +138,6 @@ def generate_compose_file(i, db_conf, config):
         {db_name}:
           image: neo4j:4.4.24
           container_name: {db_name}
-          {mount}
           ports:
             - "{website_port}:7474"
             - "{protocol_port}:7687"
@@ -164,22 +155,26 @@ def generate_compose_file(i, db_conf, config):
             retries: 10
           networks:
             - {network_name}
+          
 
         """).strip("\n")
     elif database == "memgraph":  # memgraph
-        db_url = f"bolt://{db_name}:{protocol_port}"
+        db_url = f"bolt://{db_name}:7687"
         databaseService = dedent(f"""
         {db_name}:
-          image: memgraph/memgraph:latest
+          image: memgraph/memgraph:3.0.0
           container_name: {db_name}
-          command: ["--log-level=TRACE"]
-          pull_policy: always
+          command: ["--log-level=INFO"]
           healthcheck:
             test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
             interval: 10s
             timeout: 5s
             retries: 3
             start_period: 0s
+          ulimits:
+            nofile:
+              soft: 40000
+              hard: 40000
           ports:
             - "{protocol_port}:7687"
           networks:
@@ -187,7 +182,6 @@ def generate_compose_file(i, db_conf, config):
 
         lab{i+1}:
           image: memgraph/lab
-          pull_policy: always
           container_name: lab{i+1}
           depends_on:
             {db_name}:
@@ -238,7 +232,7 @@ def generate_compose_file(i, db_conf, config):
     lines = [
         f"name: {replica_name}",
         "services:",
-        # databaseService_block,
+        databaseService_block,
         "",
         f"  {app_name}:",
         "    build:",
@@ -249,9 +243,9 @@ def generate_compose_file(i, db_conf, config):
         f'      - "{app_port}:3000"',
         "    environment:",
         environment_block,
-        # "    depends_on:",
-        # f"      {db_name}:",
-        # "        condition: service_healthy",
+        "    depends_on:",
+        f"      {db_name}:",
+        "        condition: service_healthy",
         "    cap_add:",
         "       - NET_ADMIN",
         "    networks:",
@@ -335,6 +329,7 @@ def is_stack_running(stack_name):
 
 def down_all():
     config = load_config()
+    run_command(["docker", "network", "rm", "Shared_net"])
     for i in range(len(config["dbs"])):
         file = f"docker-compose.{i+1}.yml"
         network = f"Replica_net_{i+1}"
