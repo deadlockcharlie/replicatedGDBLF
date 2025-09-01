@@ -1,11 +1,11 @@
-name: Replica3
+name: Replica5
 services:
-  neo4j3:
+  neo4j5:
     image: neo4j:4.4.24
-    container_name: neo4j3
+    container_name: neo4j5
     ports:
-      - "7476:7474"
-      - "7689:7687"
+      - "7478:7474"
+      - "7691:7687"
     environment:
       NEO4JLABS_PLUGINS: '["apoc", "graph-data-science"]'
       NEO4J_AUTH: none
@@ -19,33 +19,33 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - Replica_net_3
+      - Replica_net_5
 
-  app3:
+  app5:
     build:
       context: ../
       dockerfile: ./Dockerfiles/wrapperdockerfile
-    container_name: Replica3
+    container_name: Replica5
     ports:
-      - "3002:3000"
+      - "3004:3000"
     environment:
-      DATABASE_URI: bolt://neo4j3:7687
+      DATABASE_URI: bolt://neo4j5:7687
       NEO4J_USER: "pandey"
       NEO4J_PASSWORD: "verysecretpassword"
       USER: pandey
       DATABASE: NEO4J
       LOG_LEVEL: error
       LEADER_URI: "http://Replica1:3000"
-      MY_URI: "http://Replica3:3000"
+      MY_URI: "http://Replica5:3000"
     depends_on:
-      neo4j3:
+      neo4j5:
         condition: service_healthy
     cap_add:
        - NET_ADMIN
     networks:
-      - Replica_net_3
+      - Replica_net_5
       - Shared_net
 networks:
-  Replica_net_3:
+  Replica_net_5:
   Shared_net:
     external: true

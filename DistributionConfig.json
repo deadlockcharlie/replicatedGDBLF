@@ -4,22 +4,40 @@
   "base_app_port": 3000,
   "dbs" : [
     {
-      "database": "memgraph", 
+      "database": "neo4j", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"
     },
     {
-      "database": "memgraph", 
+      "database": "neo4j", 
       "password": "verysecretpassword",
       "user": "pandey",
-      "app_log_level": "info"
+      "app_log_level": "error"
     },
     {
-      "database": "memgraph", 
+      "database": "neo4j", 
       "password": "verysecretpassword",
       "user": "pandey",
-      "app_log_level": "info"
+      "app_log_level": "error"
+    },
+    {
+      "database": "neo4j", 
+      "password": "verysecretpassword",
+      "user": "pandey",
+      "app_log_level": "error"
+    },
+    {
+      "database": "neo4j", 
+      "password": "verysecretpassword",
+      "user": "pandey",
+      "app_log_level": "error"
+    },
+    {
+      "database": "neo4j", 
+      "password": "verysecretpassword",
+      "user": "pandey",
+      "app_log_level": "error"
     }
   ]
 }
