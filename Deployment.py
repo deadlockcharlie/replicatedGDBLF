@@ -130,6 +130,23 @@ def generate_compose_file(i, db_conf, config):
     network_name = f"Replica_net_{i+1}"
 
     
+    preload_block = ""
+    volume_block= ""
+    envPreload=False
+    if "preload_data" in config and config["preload_data"]==True :
+      envPreload = True
+      preload_block = dedent(f"""
+      volumes:
+        neo4j_data:
+          external: true
+                     """).strip("\n")
+      volume_block = dedent(f"""
+      volumes:
+        - neo4j_data:/data""").strip("\n")
+    elif config["preload_data"] !=True and config["preload_data"] != False:
+      print("preload_data specified with incorrect parameter. Expecting true or false. Exiting")
+      sys.exit(0)
+
 
 
     if database == "neo4j":
@@ -148,40 +165,39 @@ def generate_compose_file(i, db_conf, config):
             nofile:
               soft: 40000
               hard: 40000
+            
           healthcheck:
             test: [ "CMD", "bash", "-c", "cypher-shell -u neo4j -p {password} 'RETURN 1'" ]
             interval: 10s
             timeout: 5s
             retries: 10
           networks:
-            - {network_name}
-          
+            - Shared_net
+          {volume_block}
 
         """).strip("\n")
     elif database == "memgraph":  # memgraph
         db_url = f"bolt://{db_name}:7687"
         databaseService = dedent(f"""
         {db_name}:
-          image: memgraph/memgraph:3.0.0
+          image: memgraph/memgraph:latest
           container_name: {db_name}
-          command: ["--log-level=INFO"]
+          command: ["--log-level=TRACE"]
+          pull_policy: always
           healthcheck:
             test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
             interval: 10s
             timeout: 5s
             retries: 3
             start_period: 0s
-          ulimits:
-            nofile:
-              soft: 40000
-              hard: 40000
           ports:
             - "{protocol_port}:7687"
           networks:
-            - {network_name}
+            - Shared_net
 
         lab{i+1}:
           image: memgraph/lab
+          pull_policy: always
           container_name: lab{i+1}
           depends_on:
             {db_name}:
@@ -192,7 +208,7 @@ def generate_compose_file(i, db_conf, config):
             QUICK_CONNECT_MG_HOST: {db_name}
             QUICK_CONNECT_MG_PORT: 7687
           networks:
-            - {network_name}
+            - Shared_net
 
         """).strip("\n")
     elif database == "janusgraph":  # janusgraph
@@ -203,16 +219,73 @@ def generate_compose_file(i, db_conf, config):
           container_name: {db_name}
           healthcheck:
             test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
-            interval: 25s
-            timeout: 20s
-            retries: 3
+            interval: 10s
+            timeout: 5s
+            retries: 10
           ports:
             - "{protocol_port}:8182"
           networks:
-            - {network_name}
-
+            - Shared_net
         """).strip("\n")
 
+    elif database == "arangodb":  # arangodb
+        db_url = f"http://{db_name}:8529"
+        databaseService = dedent(f"""
+        {db_name}:
+          image: arangodb:latest
+          container_name: {db_name}
+          environment:
+            ARANGO_NO_AUTH : 1
+          healthcheck:
+            test: ["CMD-SHELL", "arangosh --server.endpoint tcp://127.0.0.1:8529 --server.authentication false --javascript.execute-string 'quit(0)'"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+          ports:
+            - "{protocol_port}:8529"
+          networks:
+            - Shared_net
+        """).strip("\n")
+    elif database == "mongodb":  # mongodb
+        db_url = f"mongodb://{db_name}:27017"
+        databaseService = dedent(f"""
+        {db_name}:
+          image: mongo:8.0.14-rc0
+          container_name: {db_name}
+          ports:
+            - "{protocol_port}:27017"
+          healthcheck:
+            test: echo 'db.runCommand("ping").ok' | mongosh mongodb://{db_name}:27017/ --quiet
+            interval: 10s
+            timeout: 5s
+            retries: 5
+          networks:
+            - Shared_net
+        """).strip("\n")
+    # elif database == "nebulagraph":  # nebulagraph
+    #     db_url = f"http://{db_name}:7687"
+    #     databaseService = dedent(f"""
+    #     {db_name}:
+    #       image: vesoft/nebula-graphd:latest
+    #       container_name: {db_name}
+    #       environment:
+    #         TZ: "UTC"
+    #       healthcheck:
+    #         test: ["CMD-SHELL", "echo 'SHOW HOSTS;' | nebula-console -u root -p nebula --address {db_name} --port 3699 || exit 1"]
+    #         interval: 10s
+    #         timeout: 5s
+    #         retries: 5
+    #       ports:
+    #         - "{protocol_port}:3699"
+    #       networks:
+    #         - Shared_net
+    #     """).strip("\n")  
+    else:
+        print(f"Unsupported database: {database}. Expecting one of: neo4j, memgraph, janusgraph, arangodb, mongodb.")
+        sys.exit(1)
+
+
+        
     environment = dedent(f"""
     DATABASE_URI: {db_url}
     NEO4J_USER: "{db_user}"

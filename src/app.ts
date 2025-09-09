@@ -19,8 +19,10 @@ app.use((req, res, next) => {
 import { logger } from "./helpers/logging";
 
 // Setup Database
-import { Neo4jDriver } from "./drivers/neo4jDriver";
 import { GremlinDriver } from "./drivers/germlinDriver";
+import { MemGraphDriver } from "./drivers/memgraphDriver";
+import { ArangoDBDriver } from "./drivers/ArangoDBDriver";
+import { MongoDBDriver } from "./drivers/MongoDBDriver";
 
 logger.info(`environment: ${JSON.stringify(process.env)}`);
 const dbname = process.env.DATABASE;
@@ -29,11 +31,18 @@ export var driver;
 switch (dbname) {
   case "NEO4J":
   case "MEMGRAPH":
-    driver = new Neo4jDriver();
+    driver = new MemGraphDriver();
     break;
   case "JANUSGRAPH":
     driver = new GremlinDriver();
     break;
+  case "ARANGODB":
+    driver = new ArangoDBDriver();
+    break;
+  case "MONGODB":
+    driver = new MongoDBDriver();
+    break;
+
   default:
     logger.error(
       "No database specified in configuration. Cannot initialize driver."
@@ -42,49 +51,324 @@ switch (dbname) {
     break;
 }
 
+import { query, checkSchema, validationResult, check } from "express-validator";
+
 import { serviceRegistry } from "./helpers/serviceRegistry";
 export var registry = new serviceRegistry();
 
-app.post("/write", async (req, res) => {
-  logger.info("query route called");
-  logger.info(JSON.stringify(req.body));
-  logger.info(JSON.stringify(registry.services));
+import {
+  VertexSchema,
+  deleteVertexSchema,
+  EdgeSchema,
+  deleteEdgeSchema,
+  setVertexPropertySchema,
+  setEdgePropertySchema,
+  removeVertexPropertySchema,
+  removeEdgePropertySchema,
+} from "./schemas/requests";
 
-  const result = await driver.runQuery(req.body.query, req.body.params || null);
-  logger.info(result);
+// app.post("/write", async (req, res) => {
+//   logger.info("query route called");
+//   logger.info(JSON.stringify(req.body));
+//   logger.info(JSON.stringify(registry.services));
 
+//   const result = await driver.runQuery(req.body.query, req.body.params || null);
+//   logger.info(result);
+
+//   let futures = [];
+
+//   registry.services.forEach((uri) => {
+//     logger.info("Endpoint" + uri);
+//     futures.push(axios.post(uri + "/write", req.body));
+//   });
+
+//   try {
+//     await Promise.all(futures);
+//     logger.info("Done");
+//     res.status(200).json("Done!");
+//   } catch (err) {
+//     logger.info(err.message);
+//     res
+//       .status(500)
+//       .json(
+//         "An error occurred when forwarding to a follower. Please try again"
+//       );
+//   }
+// });
+
+async function forwardRequest(endpoint, requestBody) {
   let futures = [];
-
   registry.services.forEach((uri) => {
     logger.info("Endpoint" + uri);
-    futures.push(axios.post(uri + "/write", req.body));
+    futures.push(axios.post(uri + endpoint, requestBody));
   });
 
   try {
     await Promise.all(futures);
     logger.info("Done");
-    res.status(200).json("Done!");
   } catch (err) {
     logger.info(err.message);
-    res
-      .status(500)
-      .json(
-        "An error occurred when forwarding to a follower. Please try again"
-      );
   }
-});
+}
 
+app.post(
+  "/api/addVertex",
+  checkSchema(VertexSchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Add Vertex Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        if (await driver.addVertex(req.body.label, req.body.properties)) {
+          await forwardRequest("/api/addVertex", req.body);
+          res.status(200).json("Vertex added.");
+        } else {
+          res.status(500).json("Error occurred: Vertex could not be created.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
 
-app.post("/read", async (req, res) => {
-  logger.info("read route called");
-  logger.info(JSON.stringify(req.body));
-  logger.info(JSON.stringify(registry.services));
+app.post(
+  "/api/deleteVertex",
+  checkSchema(deleteVertexSchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Delete Vertex Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        logger.info("Deleting vertex with id: " + req.body.id);
+        if (await driver.deleteVertex(req.body.id)) {
+          await forwardRequest("/api/deleteVertex", req.body);
+          res.status(200).json("Vertex deleted.");
+        } else {
+          res.status(500).json("Error occurred: Vertex could not be deleted.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
 
-  const result = await driver.runQuery(req.body.query, req.body.params || null);
-  logger.info(result);
-  res.status(200).json("Done");
+app.post(
+  "/api/addEdge",
+  checkSchema(EdgeSchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Add Edge Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        if(await driver.addEdge(
+          req.body.relationType,
+          req.body.sourceLabel,
+          req.body.sourcePropName,
+          req.body.sourcePropValue,
+          req.body.targetLabel,
+          req.body.targetPropName,
+          req.body.targetPropValue,
+          req.body.properties
+        )){
+          await forwardRequest("/api/addEdge", req.body);
+          res.status(200).json("Edge added.");
+        } else {
+          res.status(500).json("Error occurred: Edge could not be created.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
 
-});
+app.post(
+  "/api/deleteEdge",
+  checkSchema(deleteEdgeSchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Delete Edge Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        if(await driver.deleteEdge(req.body.id)){ 
+          await forwardRequest("/api/deleteEdge", req.body);
+          res.status(200).json("Edge deleted.");
+        } else {
+          res.status(500).json("Error occurred: Edge could not be deleted.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
+
+app.post(
+  "/api/setVertexProperty",
+  checkSchema(setVertexPropertySchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Set Vertex Property Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        logger.info("Setting vertex property with id: " + req.body.id);
+        if (await driver.setVertexProperty(
+          req.body.id,
+          req.body.key,
+          req.body.value
+        )) {
+          await forwardRequest("/api/setVertexProperty", req.body);
+          res.status(200).json("Vertex property set.");
+        } else {
+          logger.error("Error occurred: Vertex property could not be set.");
+          res.status(500).json("Error occurred: Vertex property could not be set.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
+
+app.post(
+  "/api/setEdgeProperty",
+  checkSchema(setEdgePropertySchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Set Edge Property Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        if(await driver.setEdgeProperty(
+          req.body.id,
+          req.body.key,
+          req.body.value
+        ))
+        {
+          await forwardRequest("/api/setEdgeProperty", req.body);
+          res.status(200).json("Edge property set.");
+        } else {
+          logger.error("Error occurred: Edge property could not be set.");
+          res.status(500).json("Error occurred: Edge property could not be set.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
+
+app.post(
+  "/api/removeVertexProperty",
+  checkSchema(removeVertexPropertySchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Remove Vertex Property Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        logger.info("Removing vertex property with id: " + req.body.id);
+        if(await driver.removeVertexProperty(
+          req.body.id,
+          req.body.key
+        )){
+          await forwardRequest("/api/removeVertexProperty", req.body);
+          res.status(200).json("Vertex property removed.");
+        } else {
+          res
+            .status(500)
+            .json("Error occurred: Vertex property could not be removed.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
+        
+
+app.post(
+  "/api/removeEdgeProperty",
+  checkSchema(removeEdgePropertySchema, ["body"]),
+  async (req, res) => {
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      logger.error(
+        `Remove Edge Property Malformed request rejected: ${JSON.stringify(
+          validation.array()
+        )}`
+      );
+      res.status(500).json("Malformed request.");
+    } else {
+      try {
+        logger.info("Removing edge property with id: " + req.body.id);
+        if(await driver.removeEdgeProperty(
+          req.body.id,
+          req.body.key
+        )){
+          await forwardRequest("/api/removeEdgeProperty", req.body);
+          res.status(200).json("Edge property removed.");
+        } else {
+          res
+            .status(500)
+            .json("Error occurred: Edge property could not be removed.");
+        }
+      } catch (e) {
+        res.status(500).json("Error occurred: " + e.message);
+        logger.error("Error occurred: " + e.message);
+      }
+    }
+  }
+);
 
 app.post("/register", async (req, res) => {
   logger.info("Service trying to register: " + req.body);
@@ -176,6 +460,7 @@ import { selectFields } from "express-validator/lib/field-selection";
 import { connect } from "http2";
 import { RetryHandler } from "undici";
 import { error } from "console";
+import { stripTypeScriptTypes } from "module";
 
 let leader: boolean = false;
 async function onListening() {

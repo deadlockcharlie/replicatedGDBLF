@@ -2,42 +2,13 @@
   "base_website_port": 7474,
   "base_protocol_port": 7687,
   "base_app_port": 3000,
+  "preload_data": false,
   "dbs" : [
     {
-      "database": "neo4j", 
+      "database": "arangodb", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"
-    },
-    {
-      "database": "neo4j", 
-      "password": "verysecretpassword",
-      "user": "pandey",
-      "app_log_level": "error"
-    },
-    {
-      "database": "neo4j", 
-      "password": "verysecretpassword",
-      "user": "pandey",
-      "app_log_level": "error"
-    },
-    {
-      "database": "neo4j", 
-      "password": "verysecretpassword",
-      "user": "pandey",
-      "app_log_level": "error"
-    },
-    {
-      "database": "neo4j", 
-      "password": "verysecretpassword",
-      "user": "pandey",
-      "app_log_level": "error"
-    },
-    {
-      "database": "neo4j", 
-      "password": "verysecretpassword",
-      "user": "pandey",
-      "app_log_level": "error"
     }
   ]
 }
