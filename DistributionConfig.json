@@ -5,7 +5,7 @@
   "preload_data": false,
   "dbs" : [
     {
-      "database": "arangodb", 
+      "database": "mongodb", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"

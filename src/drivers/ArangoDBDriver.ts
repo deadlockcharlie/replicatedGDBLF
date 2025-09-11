@@ -113,6 +113,7 @@ return Promise.resolve(false);
         _from: "vertices/"+sourcePropValue,
         _to: "vertices/"+targetPropValue,
         _key: properties.id,
+        label: relationLabels,
         properties: properties
       });
         return Promise.resolve(true);
