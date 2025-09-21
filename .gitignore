@@ -1,6 +1,7 @@
 dist
 node_modules
 Logs
-
+./PreloadData
+./Dockerfiles/PreloadData
 .DS_Store
 

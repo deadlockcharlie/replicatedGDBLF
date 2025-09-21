@@ -7,8 +7,13 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4JLABS_PLUGINS: '["apoc", "graph-data-science"]'
       NEO4J_AUTH: none
+      NEO4JLABS_PLUGINS: '["apoc"]'
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - ./PreloadData:/var/lib/neo4j/import 
     ulimits:
       nofile:
         soft: 40000
@@ -19,6 +24,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - Shared_net
+
+  preload1:
+    image: neo4j:4.4.24
+    container_name: preload1
+    depends_on:
+      neo4j1:
+        condition: service_healthy
+    volumes:
+      - ./PreloadData:/var/lib/neo4j/import
+    entrypoint:
+      [
+        "bash", "-c",
+        "cypher-shell -a bolt://neo4j1:7687 -u pandey -p verysecretpassword -f /var/lib/neo4j/import/preload.cypher"
+      ]
     networks:
       - Shared_net
 
@@ -41,6 +62,8 @@ services:
     depends_on:
       neo4j1:
         condition: service_healthy
+      preload1:
+         condition: service_completed_successfully
     cap_add:
        - NET_ADMIN
     networks:

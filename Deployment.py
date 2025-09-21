@@ -126,6 +126,7 @@ def generate_compose_file(i, db_conf, config):
     db_user = db_conf["user"]
 
     db_name = f"{database}{i+1}"
+    preloadName = f"preload{i+1}"
     app_name = f"app{i+1}"
     replica_name = f"Replica{i+1}"
     network_name = f"Replica_net_{i+1}"
@@ -160,8 +161,13 @@ def generate_compose_file(i, db_conf, config):
             - "{website_port}:7474"
             - "{protocol_port}:7687"
           environment:
-            NEO4JLABS_PLUGINS: '["apoc", "graph-data-science"]'
             NEO4J_AUTH: none
+            NEO4JLABS_PLUGINS: '["apoc"]'
+            NEO4J_apoc_import_file_enabled: "true"
+            NEO4J_apoc_import_file_use__neo4j__config: "true"
+            NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+          volumes:
+            - ./PreloadData:/var/lib/neo4j/import 
           ulimits:
             nofile:
               soft: 40000
@@ -175,6 +181,21 @@ def generate_compose_file(i, db_conf, config):
           networks:
             - Shared_net
           {volume_block}
+        {preloadName}:
+          image: neo4j:4.4.24
+          container_name: preload{i+1}
+          depends_on:
+            {db_name}:
+              condition: service_healthy
+          volumes:
+            - ./PreloadData:/var/lib/neo4j/import
+          entrypoint:
+            [
+              "bash", "-c",
+              "cypher-shell -a bolt://{db_name}:7687 -u pandey -p verysecretpassword -f /var/lib/neo4j/import/preload.cypher"
+            ]
+          networks:
+            - Shared_net
 
         """).strip("\n")
     elif database == "memgraph":  # memgraph
@@ -301,8 +322,10 @@ def generate_compose_file(i, db_conf, config):
     # indent to exact nesting levels
     databaseService_block = indent(databaseService, "  ")  # under `services:`
     environment_block = indent(environment, "      ")      # under `environment:`
-
-
+    preloadWaitBlock = dedent(f"""
+    {preloadName}:
+        condition: service_completed_successfully
+        """).strip("\n")
     lines = [
         f"name: {replica_name}",
         "services:",
@@ -320,6 +343,8 @@ def generate_compose_file(i, db_conf, config):
         "    depends_on:",
         f"      {db_name}:",
         "        condition: service_healthy",
+        f"      {preloadName}:",
+        "         condition: service_completed_successfully",
         "    cap_add:",
         "       - NET_ADMIN",
         "    networks:",
@@ -409,7 +434,7 @@ def down_all():
         network = f"Replica_net_{i+1}"
         print(f"Stopping containers from {'./Dockerfiles/'+file}...")
 
-        run_command(["docker","compose", "-f", './Dockerfiles/'+file , "down"])
+        run_command(["docker","compose", "-v", "-f", './Dockerfiles/'+file , "down"])
         print(f"Removing network {network}...")
         run_command(["docker", "network", "rm", network])
 
