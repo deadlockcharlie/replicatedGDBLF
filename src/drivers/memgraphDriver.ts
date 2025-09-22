@@ -59,21 +59,18 @@ export class MemGraphDriver extends DatabaseDriver {
 
   async addEdge(
     relationLabels: [string],
-    sourceLabels: [string],
     sourcePropName: string,
     sourcePropValue: any,
-    targetLabels: [string],
+
     targetPropName: string,
     targetPropValue: any,
     properties: { [key: string]: any }
   ): Promise<Boolean> {
-    const sourceLabelString = sourceLabels.join(":");
-    const targetLabelString = targetLabels.join(":");
     const relationLabelString = relationLabels.join(":");
 
     const query = `
-          MATCH (a:${sourceLabelString} {${sourcePropName}: "${sourcePropValue}"}), 
-                (b:${targetLabelString} {${targetPropName}: "${targetPropValue}"})
+          MATCH (a {${sourcePropName}: "${sourcePropValue}"}), 
+                (b {${targetPropName}: "${targetPropValue}"})
           CREATE (a)-[r:${relationLabelString}]->(b)
           SET r += $properties
           RETURN r;

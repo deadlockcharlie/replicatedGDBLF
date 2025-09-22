@@ -1,45 +1,50 @@
 name: Replica1
 services:
-  neo4j1:
-    image: neo4j:4.4.24
-    container_name: neo4j1
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    environment:
-      NEO4J_AUTH: none
-      NEO4JLABS_PLUGINS: '["apoc"]'
-      NEO4J_apoc_import_file_enabled: "true"
-      NEO4J_apoc_import_file_use__neo4j__config: "true"
-      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+  memgraph1:
+    image: memgraph/memgraph:latest
+    container_name: memgraph1
+    command: ["--log-level=TRACE"]
+    pull_policy: always
     volumes:
-      - ./PreloadData:/var/lib/neo4j/import 
-    ulimits:
-      nofile:
-        soft: 40000
-        hard: 40000
-
+      - /Users/pandey/work/GRACE/PreloadData:/var/lib/memgraph/import
     healthcheck:
-      test: [ "CMD", "bash", "-c", "cypher-shell -u neo4j -p verysecretpassword 'RETURN 1'" ]
+      test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 3
+      start_period: 0s
+    ports:
+      - "7687:7687"
     networks:
       - Shared_net
-
   preload1:
-    image: neo4j:4.4.24
+    image: memgraph/memgraph:latest
     container_name: preload1
     depends_on:
-      neo4j1:
+      memgraph1:
         condition: service_healthy
     volumes:
-      - ./PreloadData:/var/lib/neo4j/import
+      - /Users/pandey/work/GRACE/PreloadData:/var/lib/memgraph/import
     entrypoint:
       [
         "bash", "-c",
-        "cypher-shell -a bolt://neo4j1:7687 -u pandey -p verysecretpassword -f /var/lib/neo4j/import/preload.cypher"
+        "mgconsole --host memgraph1 --port 7687 < /var/lib/memgraph/import/preloadMemgraph.cypher"
       ]
+    networks:
+      - Shared_net
+
+  lab1:
+    image: memgraph/lab
+    pull_policy: always
+    container_name: lab1
+    depends_on:
+      memgraph1:
+        condition: service_healthy
+    ports:
+      - "7474:3000"
+    environment:
+      QUICK_CONNECT_MG_HOST: memgraph1
+      QUICK_CONNECT_MG_PORT: 7687
     networks:
       - Shared_net
 
@@ -51,16 +56,16 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URI: bolt://neo4j1:7687
+      DATABASE_URI: bolt://memgraph1:7687
       NEO4J_USER: "pandey"
       NEO4J_PASSWORD: "verysecretpassword"
       USER: pandey
-      DATABASE: NEO4J
+      DATABASE: MEMGRAPH
       LOG_LEVEL: error
       LEADER_URI: "http://Replica1:3000"
       MY_URI: "http://Replica1:3000"
     depends_on:
-      neo4j1:
+      memgraph1:
         condition: service_healthy
       preload1:
          condition: service_completed_successfully

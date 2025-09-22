@@ -12,6 +12,7 @@ import threading
 VERBOSE = False
 BENCHMARK = False
 PATH ="DistributionConfig.json"
+PRELOAD_DATA=""
 
 def spinner(stop_event):
     spinner_chars = ['|', '/', '-', '\\']
@@ -167,7 +168,7 @@ def generate_compose_file(i, db_conf, config):
             NEO4J_apoc_import_file_use__neo4j__config: "true"
             NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
           volumes:
-            - ./PreloadData:/var/lib/neo4j/import 
+            - {PRELOAD_DATA}:/var/lib/neo4j/import 
           ulimits:
             nofile:
               soft: 40000
@@ -188,11 +189,11 @@ def generate_compose_file(i, db_conf, config):
             {db_name}:
               condition: service_healthy
           volumes:
-            - ./PreloadData:/var/lib/neo4j/import
+            - {PRELOAD_DATA}:/var/lib/neo4j/import
           entrypoint:
             [
               "bash", "-c",
-              "cypher-shell -a bolt://{db_name}:7687 -u pandey -p verysecretpassword -f /var/lib/neo4j/import/preload.cypher"
+              "cypher-shell -a bolt://{db_name}:7687 -u pandey -p verysecretpassword -f /var/lib/neo4j/import/preloadNeo4j.cypher"
             ]
           networks:
             - Shared_net
@@ -206,6 +207,8 @@ def generate_compose_file(i, db_conf, config):
           container_name: {db_name}
           command: ["--log-level=TRACE"]
           pull_policy: always
+          volumes:
+            - {PRELOAD_DATA}:/var/lib/memgraph/import
           healthcheck:
             test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
             interval: 10s
@@ -216,7 +219,22 @@ def generate_compose_file(i, db_conf, config):
             - "{protocol_port}:7687"
           networks:
             - Shared_net
-
+        {preloadName}:
+          image: memgraph/memgraph:latest
+          container_name: preload{i+1}
+          depends_on:
+            {db_name}:
+              condition: service_healthy
+          volumes:
+            - {PRELOAD_DATA}:/var/lib/memgraph/import
+          entrypoint:
+            [
+              "bash", "-c",
+              "mgconsole --host {db_name} --port 7687 < /var/lib/memgraph/import/preloadMemgraph.cypher"
+            ]
+          networks:
+            - Shared_net
+              
         lab{i+1}:
           image: memgraph/lab
           pull_policy: always
@@ -497,6 +515,8 @@ if __name__ == "__main__":
     VERBOSE = args.verbose 
     command = args.command
     PATH= args.distconf
+    PRELOAD_DATA=os.environ["PRELOAD_DATA"]
+    print(os.environ)
 
     # BENCHMARK = args.benchmark
     

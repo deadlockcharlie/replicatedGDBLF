@@ -184,10 +184,8 @@ app.post(
       try {
         if(await driver.addEdge(
           req.body.relationType,
-          req.body.sourceLabel,
           req.body.sourcePropName,
           req.body.sourcePropValue,
-          req.body.targetLabel,
           req.body.targetPropName,
           req.body.targetPropValue,
           req.body.properties

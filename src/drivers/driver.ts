@@ -4,10 +4,8 @@ export abstract class DatabaseDriver {
   abstract addVertex(labels: [string], properties: { [key: string]: any }): Promise<Boolean>;
   abstract addEdge(
     relationLabels: [string],
-    sourceLabel: [string],
     sourcePropName: string,
     sourcePropValue: any,
-    targetLabel: [string],
     targetPropName: string,
     targetPropValue: any,
     properties: { [key: string]: any }
