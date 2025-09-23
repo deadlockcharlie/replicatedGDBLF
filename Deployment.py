@@ -516,7 +516,7 @@ if __name__ == "__main__":
     command = args.command
     PATH= args.distconf
     PRELOAD_DATA=os.environ["PRELOAD_DATA"]
-    print(os.environ)
+    # print(os.environ)
 
     # BENCHMARK = args.benchmark
     

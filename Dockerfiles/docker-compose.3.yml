@@ -1,0 +1,80 @@
+name: Replica3
+services:
+  memgraph3:
+    image: memgraph/memgraph:latest
+    container_name: memgraph3
+    command: ["--log-level=TRACE"]
+    pull_policy: always
+    volumes:
+      - /Users/pandey/work/GRACE/PreloadData:/var/lib/memgraph/import
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'RETURN 0;' | mgconsole || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 0s
+    ports:
+      - "7689:7687"
+    networks:
+      - Shared_net
+  preload3:
+    image: memgraph/memgraph:latest
+    container_name: preload3
+    depends_on:
+      memgraph3:
+        condition: service_healthy
+    volumes:
+      - /Users/pandey/work/GRACE/PreloadData:/var/lib/memgraph/import
+    entrypoint:
+      [
+        "bash", "-c",
+        "mgconsole --host memgraph3 --port 7687 < /var/lib/memgraph/import/preloadMemgraph.cypher"
+      ]
+    networks:
+      - Shared_net
+
+  lab3:
+    image: memgraph/lab
+    pull_policy: always
+    container_name: lab3
+    depends_on:
+      memgraph3:
+        condition: service_healthy
+    ports:
+      - "7476:3000"
+    environment:
+      QUICK_CONNECT_MG_HOST: memgraph3
+      QUICK_CONNECT_MG_PORT: 7687
+    networks:
+      - Shared_net
+
+  app3:
+    build:
+      context: ../
+      dockerfile: ./Dockerfiles/wrapperdockerfile
+    container_name: Replica3
+    ports:
+      - "3002:3000"
+    environment:
+      DATABASE_URI: bolt://memgraph3:7687
+      NEO4J_USER: "pandey"
+      NEO4J_PASSWORD: "verysecretpassword"
+      USER: pandey
+      DATABASE: MEMGRAPH
+      LOG_LEVEL: error
+      LEADER_URI: "http://Replica1:3000"
+      MY_URI: "http://Replica3:3000"
+    depends_on:
+      memgraph3:
+        condition: service_healthy
+      preload3:
+         condition: service_completed_successfully
+    cap_add:
+       - NET_ADMIN
+    networks:
+      - Replica_net_3
+      - Shared_net
+networks:
+  Replica_net_3:
+  Shared_net:
+    external: true

@@ -5,7 +5,7 @@
   "preload_data": false,
   "dbs" : [
     {
-      "database": "mongodb", 
+      "database": "memgraph", 
       "password": "verysecretpassword",
       "user": "pandey",
       "app_log_level": "info"
