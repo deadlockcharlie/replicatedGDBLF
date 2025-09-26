@@ -9,7 +9,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "tsc && node dist/app.js"
+    "start": "tsc && node --max-old-space-size=32767 dist/app.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

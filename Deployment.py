@@ -13,6 +13,9 @@ VERBOSE = False
 BENCHMARK = False
 PATH ="DistributionConfig.json"
 PRELOAD_DATA=""
+GID= os.environ['GID']
+UID=os.environ['UID']
+
 
 def spinner(stop_event):
     spinner_chars = ['|', '/', '-', '\\']
@@ -161,6 +164,7 @@ def generate_compose_file(i, db_conf, config):
           ports:
             - "{website_port}:7474"
             - "{protocol_port}:7687"
+          user: "{UID}:{GID}"
           environment:
             NEO4J_AUTH: none
             NEO4JLABS_PLUGINS: '["apoc"]'
@@ -168,7 +172,7 @@ def generate_compose_file(i, db_conf, config):
             NEO4J_apoc_import_file_use__neo4j__config: "true"
             NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
           volumes:
-            - {PRELOAD_DATA}:/var/lib/neo4j/import 
+            - {PRELOAD_DATA}:/import:ro 
           ulimits:
             nofile:
               soft: 40000
