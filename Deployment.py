@@ -185,7 +185,6 @@ def generate_compose_file(i, db_conf, config):
             retries: 10
           networks:
             - Shared_net
-          {volume_block}
         {preloadName}:
           image: neo4j:4.4.24
           container_name: preload{i+1}
