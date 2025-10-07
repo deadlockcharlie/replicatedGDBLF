@@ -24,12 +24,12 @@ export class MemGraphDriver extends DatabaseDriver {
     try {
       logger.debug(JSON.stringify(labels));
       const labelString = labels.join(":");
-    // Build and execute Cypher query
-    const query = `CREATE (n:${labelString} $properties) RETURN n`;
-    const params = { properties: properties };
-    logger.debug("Add vertex query string: " + query);
-      const result =  await this.driver.executeQuery(query, params);
-      if(result.records && result.records.length === 0){
+      // Build and execute Cypher query
+      const query = `CREATE (n:${labelString} $properties) RETURN n`;
+      const params = { properties: properties };
+      logger.debug("Add vertex query string: " + query);
+      const result = await this.driver.executeQuery(query, params);
+      if (result.records && result.records.length === 0) {
         return Promise.resolve(false);
       }
       logger.info("Vertex added with labels: " + labelString);
@@ -43,11 +43,11 @@ export class MemGraphDriver extends DatabaseDriver {
   async deleteVertex(id): Promise<Boolean> {
     try {
       logger.info("Deleting vertex with id: " + id);
-      const query = "MATCH (n {id: \""+id+"\"}) DELETE n";
-      logger.debug("Delete vertex query: "+ query);
+      const query = 'MATCH (n {id: "' + id + '"}) DELETE n';
+      logger.debug("Delete vertex query: " + query);
       const result = await this.driver.executeQuery(query, null);
       // logger.info(JSON.stringify(result));
-      if(result.summary.counters._stats.nodesDeleted == 0){
+      if (result.summary.counters._stats.nodesDeleted == 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -85,8 +85,8 @@ export class MemGraphDriver extends DatabaseDriver {
     };
 
     try {
-      const result =  await this.driver.executeQuery(query, params);
-      if(result.records && result.records.length === 0){
+      const result = await this.driver.executeQuery(query, params);
+      if (result.records && result.records.length === 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -100,9 +100,9 @@ export class MemGraphDriver extends DatabaseDriver {
     const query = 'MATCH ()-[r {id: "' + id + '"}]-() DELETE r';
     logger.info("Delete edge query: " + query);
     try {
-      const result=  await this.driver.executeQuery(query, null);
+      const result = await this.driver.executeQuery(query, null);
       logger.info(JSON.stringify(result));
-      if(result.summary.counters._stats.relationshipsDeleted == 0){
+      if (result.summary.counters._stats.relationshipsDeleted == 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -112,7 +112,11 @@ export class MemGraphDriver extends DatabaseDriver {
     }
   }
 
-  async setVertexProperty(vid: string, key: string, value: string): Promise<Boolean> {
+  async setVertexProperty(
+    vid: string,
+    key: string,
+    value: string
+  ): Promise<Boolean> {
     const query =
       'MATCH (n {id: "' +
       vid +
@@ -124,7 +128,7 @@ export class MemGraphDriver extends DatabaseDriver {
 
     try {
       const result = await this.driver.executeQuery(query, null);
-      if(result.records.length === 0){
+      if (result.records.length === 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -133,7 +137,11 @@ export class MemGraphDriver extends DatabaseDriver {
       return Promise.resolve(false);
     }
   }
-  async setEdgeProperty(eid: string, key: string, value: string): Promise<Boolean> {
+  async setEdgeProperty(
+    eid: string,
+    key: string,
+    value: string
+  ): Promise<Boolean> {
     const query =
       'MATCH ()-[r {id: "' +
       eid +
@@ -144,8 +152,8 @@ export class MemGraphDriver extends DatabaseDriver {
       '"  RETURN r';
 
     try {
-      const result= await this.driver.executeQuery(query, null);
-      if(result.records && result.records.length === 0){
+      const result = await this.driver.executeQuery(query, null);
+      if (result.records && result.records.length === 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -159,7 +167,7 @@ export class MemGraphDriver extends DatabaseDriver {
     const query = 'MATCH (n {id: "' + vid + '"}) REMOVE n.' + key + " RETURN n";
     try {
       const result = await this.driver.executeQuery(query, null);
-      if(result.records && result.records.length == 0){
+      if (result.records && result.records.length == 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);
@@ -175,7 +183,7 @@ export class MemGraphDriver extends DatabaseDriver {
 
     try {
       const result = await this.driver.executeQuery(query, null);
-      if(result.records && result.records.length == 0){
+      if (result.records && result.records.length == 0) {
         return Promise.resolve(false);
       }
       return Promise.resolve(true);

@@ -187,12 +187,13 @@ def generate_compose_file(i, db_conf, config):
             - Shared_net
         {preloadName}:
           image: neo4j:4.4.24
-          container_name: preload{i+1}
+          container_name: {preloadName}
           depends_on:
             {db_name}:
               condition: service_healthy
           volumes:
             - {PRELOAD_DATA}:/var/lib/neo4j/import
+          user: "{UID}:{GID}"
           entrypoint:
             [
               "bash", "-c",
@@ -224,7 +225,7 @@ def generate_compose_file(i, db_conf, config):
             - Shared_net
         {preloadName}:
           image: memgraph/memgraph:latest
-          container_name: preload{i+1}
+          container_name: {preloadName}
           depends_on:
             {db_name}:
               condition: service_healthy
@@ -288,6 +289,21 @@ def generate_compose_file(i, db_conf, config):
             - "{protocol_port}:8529"
           networks:
             - Shared_net
+        {preloadName}
+          image: arangodb:latest
+          container_name: {preloadName}
+          depends_on:
+            {db_name}:
+              condition: service_healthy
+          volumes:
+            - ../../PreloadData:/var/lib/arangodb/import
+          entrypoint:
+            [
+              "sh", "/var/lib/arangodb/import/arangoDBImport.sh", "tcp://coordinator1:8529", "1"
+            ]
+          networks:
+            - arango-net
+
         """).strip("\n")
     elif database == "mongodb":  # mongodb
         db_url = f"mongodb://{db_name}:27017"
